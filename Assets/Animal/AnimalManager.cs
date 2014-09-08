@@ -6,7 +6,7 @@ public class AnimalManager : MonoBehaviour
 {
 
     
-    
+    public int MaxNumberOfAnimals = 100;
     public List<int> speciesList = new List<int>();
     private AnimalBehaviour animalObj;
     public AnimalBehaviour herbivoreObj;
@@ -30,7 +30,7 @@ public class AnimalManager : MonoBehaviour
         Vector3 pos = new Vector3(0, 0.5f, 0);
         animal = Instantiate(carnivoreObj, pos, Quaternion.identity)as AnimalBehaviour;
         
-        animal.newAnimal(AnimalBehaviour.AnimalType.carnivore, 1, pos, 25, 20, 1,0.175f, 0.075f, 4, 0.5f, 1.0f);
+        animal.newAnimal(AnimalBehaviour.AnimalType.carnivore, 1, pos, 25, 20, 1,5, 0.075f, 4, 0.5f, 1.0f);
 
         animalList.Add(animal);
         speciesList.Add(1);
@@ -49,7 +49,7 @@ public class AnimalManager : MonoBehaviour
             Vector3 pos = new Vector3(0, 0.5f, 0);
             animal = Instantiate(animalObj, pos, Quaternion.identity)as AnimalBehaviour;
 
-            animal.newAnimal(AnimalBehaviour.AnimalType.herbivore,0, pos, 15, 20, 1,0.125f, 0.075f, 4, 0.5f, 1.0f);
+            animal.newAnimal(AnimalBehaviour.AnimalType.herbivore,0, pos, 15, 20, 1,4, 0.075f, 4, 0.5f, 1.0f);
             
             
 
@@ -69,7 +69,7 @@ public class AnimalManager : MonoBehaviour
                 speciesList[specIndex]--;
             }else{
 
-                if (animalList [i].GetIfReadyToPop() && animalList.Count <= 200)
+                if (animalList [i].GetIfReadyToPop() && animalList.Count <= MaxNumberOfAnimals)
                 {
                     MakeBaby(2, i);
                     animalList [i].setReadyToPop(false);

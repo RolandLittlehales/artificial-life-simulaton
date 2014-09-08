@@ -45,6 +45,7 @@ public class AnimalBehaviour : MonoBehaviour
     private float maxWillToLive;
     private float health; //Dies when health = 0. Energy used to heal.
     private float willToReproduce; //increments through time??
+    private float runFromDist = 2.5f; // the distance that it runs from a threat.
 //--
 
 //Eat
@@ -78,7 +79,8 @@ public class AnimalBehaviour : MonoBehaviour
     private float turnFreq = 0.025f; //How often it decideds to adjust it's turn.
     private float speed; //How fast it moves forwards.
     Vector3 tarPos;         //Target's position
-
+     Vector3 noTarget = new Vector3(-999, 0.5f, -999); 
+    bool isRunningAway = false;
 
     float secondDeltaTime;
     float creatureGrowTime;
@@ -147,9 +149,7 @@ public class AnimalBehaviour : MonoBehaviour
             {
             tarPos = setTarget(isReadyToPopBaby);
             
-            //A vector to show that there is no target position
-            //noTarget is return if there is no target.
-            Vector3 noTarget = new Vector3(0, -99, 0); 
+            
             if (tarPos != noTarget)
             {
                 targetTrue = true;
@@ -158,13 +158,18 @@ public class AnimalBehaviour : MonoBehaviour
 
             //face target
             if (targetTrue)
-            {
+                {
+         
                 FaceTarget();
-
-                //Moves to target
-                MoveForwards();
-              
-            }
+                    if(isRunningAway)
+                    {//Mmoves away from threat
+                        RunAway();
+                    }
+                    else{ //Moves to target
+                
+                    MoveForwards();
+                    }
+                }
             }
             #endregion move to target
           
@@ -200,32 +205,34 @@ public class AnimalBehaviour : MonoBehaviour
             Debug.DrawLine(tarPos, position, Color.yellow);
         }
     }
-
+    void RunAway()
+    {
+        Vector3 target = tarPos;
+        target.y = 0.5f;
+        transform.position = Vector3.MoveTowards(position,-target,deltaTime*speed);
+    }
     void MoveForwards()
     {
-
-        transform.Translate(Vector3.forward * speed /(size*2));
+        transform.position = Vector3.MoveTowards(position,tarPos, deltaTime * speed);
         position = transform.position;
     }
  
     void MoveBackwards(float pushAmount)
     {
-        float push = pushAmount;
-        transform.Translate(Vector3.back * speed * push);
+        transform.Translate(Vector3.back * -speed * pushAmount);
         position = transform.position;
     }
     void MoveRight(float pushAmount)
     {
-        float push = pushAmount;
-        transform.Translate(Vector3.right * -speed * push);
+        transform.Translate(Vector3.right * -speed * pushAmount);
         position = transform.position;
     }
     void MoveLeft(float pushAmount)
     {
-        float push = pushAmount;
-        transform.Translate(Vector3.left * -speed * push);
+        transform.Translate(Vector3.left * -speed * pushAmount);
         position = transform.position;
     }
+
     Vector3 FindClosestThreat()
     {
         GameObject[] avoidList;
@@ -242,103 +249,95 @@ public class AnimalBehaviour : MonoBehaviour
                 
                 GameObject potentialtarget = avoidList [i];
                 Vector3 diff = potentialtarget.transform.position - position;
-                float curDistance = diff.sqrMagnitude;
+                float heading = diff.sqrMagnitude;
                 
-                if (curDistance < distance)
+                if (heading < distance * distance)
                 {
                     closestCarnivore = potentialtarget;
-                    distance = curDistance;
+                    distance = heading;
                 }
             }
             Debug.Log("ClosestThreatFound");
             return  closestCarnivore.transform.position;
         }
-        return Vector3.zero;
+        return noTarget; //returns invalid pos if there are no threats
 
 
     }
     Vector3 setTarget(bool lookingForMate)
     {
         GameObject[] targetList; //List of objects
-       
-        GameObject closest = null; //closest obj;
-        float distance = Mathf.Infinity; //distance of closest obj
-        Vector3 position = transform.position;
-        Vector3 diff;
+        GameObject bestTarget = null;
+        float closestDistanceSqr = Mathf.Infinity;
+        Vector3 heading;
         float curDistance; //distance of current obj
+
+
         if (!lookingForMate)
         {
             if (animalType == AnimalType.herbivore)
             {
-             targetList = GameObject.FindGameObjectsWithTag("Plant");
-                //find closest carnivore, if too close run away!!
+
                 Vector3 threat = FindClosestThreat();
-                float distOfThreat;
-
-                if (targetList.Length > 0)
-                {   
+                float threatDist = (threat - position).sqrMagnitude;
                 
-                    //foreach (GameObject potentialtarget in targetList) {
-                    for (int i = 0; i < targetList.Length; i++)
+                if(threatDist <= runFromDist)
+                {
+                    isRunningAway = true;
+                    return threat;
+                }
+                else
+                {
+                    isRunningAway = false;
+                }
+
+
+
+             targetList = GameObject.FindGameObjectsWithTag("Plant");
+               
+                //find closest carnivore, if too close run away!!
+                 threat = FindClosestThreat();
+                float distOfThreat = (threat - position).sqrMagnitude;             
+
+                if (targetList.Length > 0 && isRunningAway == false)
+                {   
+                    foreach(GameObject potentialTarget in targetList)
                     {
-                        GameObject potentialtarget = targetList [i];
-                        diff = potentialtarget.transform.position - position;
-                        curDistance = diff.sqrMagnitude;
-                        
-                        if (curDistance < distance)
+                        Vector3 directionToTarget = potentialTarget.transform.position - position;
+                        float dSqrToTarget = directionToTarget.sqrMagnitude;
+                        if(dSqrToTarget < closestDistanceSqr)
                         {
-                            closest = potentialtarget;
-                            distance = curDistance;
-                        }
-                    }
-                    //if there is a threat
-                    if(threat != Vector3.zero)
-                    {
-                        //find how far threat is
-                        diff = threat - position;
-                        distOfThreat = diff.sqrMagnitude; 
-                      
-                       
-                        //if threat is closer than food
-                        if(distOfThreat <= 50.0f)
-                        {
-                            Debug.Log("Running!!");
-                            return -threat;
+                            closestDistanceSqr = dSqrToTarget;
+                            bestTarget = potentialTarget;
                         }
                     }
 
-                    return closest.transform.position;
+                    return bestTarget.transform.position;
                 }
-            }
+ 
+            } 
             else if (animalType == AnimalType.carnivore)
             {
                 targetList = GameObject.FindGameObjectsWithTag("Herbivore");
-
-               
                 if (targetList.Length > 0)
                 {   
-                    
-                    //foreach (GameObject potentialtarget in targetList) {
-                    for (int i = 0; i < targetList.Length; i++)
+                    foreach(GameObject potentialTarget in targetList)
                     {
-                        GameObject potentialtarget = targetList [i];
-                        diff = potentialtarget.transform.position - position;
-                        curDistance = diff.sqrMagnitude;
-                        
-                        if (curDistance < distance)
+                        Vector3 directionToTarget = potentialTarget.transform.position - position;
+                        float dSqrToTarget = directionToTarget.sqrMagnitude;
+                        if(dSqrToTarget < closestDistanceSqr)
                         {
-                            closest = potentialtarget;
-                            distance = curDistance;
+                            closestDistanceSqr = dSqrToTarget;
+                            bestTarget = potentialTarget;
                         }
-
                     }
-                    return closest.transform.position;
+                    
+                    return bestTarget.transform.position;
                 }
+             
             }
-
-
-
-        } else //find mate
+        }
+        else //find mate
         {
 //Find appropiate type of creature to narrow down search then add to searchlist.
             if(animalType == AnimalType.herbivore)
@@ -357,25 +356,13 @@ public class AnimalBehaviour : MonoBehaviour
 
             if (targetList.Length > 0)
             {   
-                for (int i = 0; i < targetList.Length; i++)
-                {
-                    GameObject potentialtarget = targetList [i];
-                    diff = potentialtarget.transform.position - position;
-                    curDistance = diff.sqrMagnitude;
-                    
-                    if (curDistance < distance)
-                    {
-                        closest = potentialtarget;
-                        distance = curDistance;
-                    }
-                }
-                return closest.transform.position;
+//find mate
             }
 
 
         }
 //returns a vector out side of game world if no target.
-        return new Vector3(0, -99, 0);
+        return noTarget;
 
     }
 
@@ -391,9 +378,9 @@ public class AnimalBehaviour : MonoBehaviour
 
                 PlantBehaviour plant = col.gameObject.GetComponent<PlantBehaviour>();
                 EatPlant(plant);
-                MoveBackwards(3 );
+                MoveBackwards(0.5f);
 
-            } else if (col.tag == "Herbivore")
+            } else if (col.tag == "Herbivore" || col.tag == "Carnivore" || col.tag == "Omnivore")
             {
                 AnimalBehaviour animal = col.gameObject.GetComponent<AnimalBehaviour>();
                MoveBackwards(5);
@@ -409,14 +396,14 @@ public class AnimalBehaviour : MonoBehaviour
                 if(animal.position.z < position.z && animal.position.x < position.x){side = 8;}
                 switch(side)
                 {
-                    case 1: MoveLeft(5); break;
-                    case 2: MoveRight(5); break;
+                    case 1: MoveLeft(1); break;
+                    case 2: MoveRight(1); break;
                     case 3: MoveForwards(); break;
-                    case 4: MoveBackwards(5); break;
-                    case 5 :MoveBackwards(5); MoveLeft(5); break;
-                    case 6: MoveBackwards(5); MoveRight(5); break;
-                    case 7:MoveForwards(); MoveLeft(5); break;
-                    case 8: MoveForwards(); MoveRight(5); break;
+                    case 4: MoveBackwards(1); break;
+                    case 5 :MoveBackwards(1); MoveLeft(1); break;
+                    case 6: MoveBackwards(1); MoveRight(1); break;
+                    case 7:MoveForwards(); MoveLeft(1); break;
+                    case 8: MoveForwards(); MoveRight(1); break;
                 }
             }
         }
@@ -426,10 +413,36 @@ public class AnimalBehaviour : MonoBehaviour
             {
                 AnimalBehaviour animal = col.gameObject.GetComponent<AnimalBehaviour>();
                 EatAnimal(animal);
-                MoveBackwards(10);
+            }
+            if (col.tag == "Herbivore" || col.tag == "Carnivore" || col.tag == "Omnivore")
+            {
+                AnimalBehaviour animal = col.gameObject.GetComponent<AnimalBehaviour>();
+
+                int side = 0;
+                if(animal.position.x > position.x){side =1;}
+                if(animal.position.x < position.x){side =2;}
+                if(animal.position.z > position.z){side = 3;}
+                if(animal.position.z < position.z){side = 4;}
+                
+                if(animal.position.x > position.x && animal.position.z > position.z){side =5;}
+                if(animal.position.x < position.x && animal.position.z < position.z){side =6;}
+                if(animal.position.z > position.z && animal.position.x > position.x){side = 7;}
+                if(animal.position.z < position.z && animal.position.x < position.x){side = 8;}
+                switch(side)
+                {
+                    case 1: MoveLeft(0.5f); break;
+                    case 2: MoveRight(0.5f); break;
+                    case 3: MoveForwards(); break;
+                    case 4: MoveBackwards(0.5f); break;
+                    case 5 :MoveBackwards(0.5f); MoveLeft(0.5f); break;
+                    case 6: MoveBackwards(0.5f); MoveRight(0.5f); break;
+                    case 7:MoveForwards(); MoveLeft(0.5f); break;
+                    case 8: MoveForwards(); MoveRight(0.5f); break;
+                }
             }
         }
     }
+
 
     void OldAgeDeathCheck()
     {
